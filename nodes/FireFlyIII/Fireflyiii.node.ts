@@ -395,12 +395,14 @@ export class Fireflyiii implements INodeType {
 						{},
 					) as IDataObject;
 					const accountType = this.getNodeParameter('accountType', i) as string;
+					const accountBalanceDate = this.getNodeParameter('accountBalanceDate', i) as string;
 
 					const response = await fireflyApiRequest.call(this, {
 						method: 'GET',
 						endpoint: '/accounts',
 						query: {
 							type: accountType,
+							date: accountBalanceDate,
 							...paginationOptions,
 						},
 					});
