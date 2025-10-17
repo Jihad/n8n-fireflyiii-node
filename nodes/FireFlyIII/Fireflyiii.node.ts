@@ -217,6 +217,13 @@ export class Fireflyiii implements INodeType {
 					const accountType = this.getNodeParameter('type', i, '') as string;
 					const searchField = this.getNodeParameter('searchField', i, '') as string;
 
+					// Get pagination options (page, limit, etc.) and include them in the query
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
 					const response = await fireflyApiRequest.call(this, {
 						method: 'GET',
 						endpoint: `/search/${searchFor}`,
@@ -224,6 +231,7 @@ export class Fireflyiii implements INodeType {
 							type: accountType,
 							field: searchField,
 							query: queryString,
+							...paginationOptions,
 						},
 					});
 					returnData.push({ json: response });
