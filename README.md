@@ -14,6 +14,7 @@ This node supports many of Firefly III API endpoints, such as:
 
 - **/api/v1/transactions**: Create, list, update, and delete transactions.
 - **/api/v1/accounts**: Retrieve, create, update, and delete account details.
+- **/api/v1/bills**: Manage bills with full CRUD operations, attachments, rules, and transaction tracking.
 - **/api/v1/budgets**: Fetch budget information.
 - **/api/v1/categories**: List, create, update, and delete categories.
 - **/api/v1/tags**: Retrieve, create, update, and delete tags.

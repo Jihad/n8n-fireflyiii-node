@@ -26,6 +26,7 @@ import {
 	rulesAndGroupsFields,
 	rulesAndGroupsOperations,
 } from './actions/rules/rulesAndGroups.resource';
+import { billsOperations, billsFields } from './actions/bills/bills.resource';
 import { fireflyApiRequestV2 } from './utils/ApiRequestV2';
 
 // Helper Function: Handle Create and Update Transactions
@@ -137,6 +138,12 @@ export class Fireflyiii implements INodeType {
 						description:
 							"Endpoints deliver all of the user's asset, expense and other CRUD operations by Account",
 					},
+					// Bills resource
+					{
+						name: 'Bills API',
+						value: 'bills',
+						description: "Endpoints deliver all of the user's bills and CRUD operations by Bill",
+					},
 					// Transactions resource
 					{
 						name: 'Transactions API',
@@ -169,6 +176,7 @@ export class Fireflyiii implements INodeType {
 			...generalOperations,
 			...aboutOperations,
 			...accountsOperations,
+			...billsOperations,
 			...transactionsOperations,
 			...categoriesOperations,
 			...tagsOperations,
@@ -188,6 +196,7 @@ export class Fireflyiii implements INodeType {
 			...exportFields,
 			...aboutFields,
 			...accountsFields,
+			...billsFields,
 			...transactionsFields,
 			...categoriesFields,
 			...tagsFields,
@@ -301,9 +310,7 @@ export class Fireflyiii implements INodeType {
 						}
 					}
 					// Prepare binary data
-					const binaryData = await this.helpers.prepareBinaryData(
-						response.body, fileName,
-					);
+					const binaryData = await this.helpers.prepareBinaryData(response.body, fileName);
 
 					returnData.push({
 						json: {},
@@ -454,6 +461,134 @@ export class Fireflyiii implements INodeType {
 					const response = await fireflyApiRequest.call(this, {
 						method: 'DELETE',
 						endpoint: `/accounts/${accountId}`,
+					});
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//             Bills API
+			// ----------------------------------
+			else if (resource === 'bills') {
+				if (operation === 'listBills') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/bills',
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getBill') {
+					const billId = this.getNodeParameter('billId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/bills/${billId}`,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'createBill') {
+					const name = this.getNodeParameter('name', i) as string;
+					const amount_min = this.getNodeParameter('amount_min', i) as number;
+					const amount_max = this.getNodeParameter('amount_max', i) as number;
+					const date = this.getNodeParameter('date', i) as string;
+					const repeat_freq = this.getNodeParameter('repeat_freq', i) as string;
+					const billFields = this.getNodeParameter('billFields', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: '/bills',
+						body: {
+							name,
+							amount_min: String(amount_min),
+							amount_max: String(amount_max),
+							date,
+							repeat_freq,
+							...billFields,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'updateBill') {
+					const billId = this.getNodeParameter('billId', i) as string;
+					const updateFields = this.getNodeParameter('updateFields', i, {}) as IDataObject;
+
+					// Convert numeric amounts to strings if present
+					if (updateFields.amount_min) {
+						updateFields.amount_min = String(updateFields.amount_min);
+					}
+					if (updateFields.amount_max) {
+						updateFields.amount_max = String(updateFields.amount_max);
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/bills/${billId}`,
+						body: updateFields,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'deleteBill') {
+					const billId = this.getNodeParameter('billId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/bills/${billId}`,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getAttachments') {
+					const billId = this.getNodeParameter('billId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/bills/${billId}/attachments`,
+						query: {
+							...paginationOptions,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getRules') {
+					const billId = this.getNodeParameter('billId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/bills/${billId}/rules`,
+						query: {
+							...paginationOptions,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getTransactions') {
+					const billId = this.getNodeParameter('billId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/bills/${billId}/transactions`,
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+						},
 					});
 					returnData.push({ json: response });
 				}
