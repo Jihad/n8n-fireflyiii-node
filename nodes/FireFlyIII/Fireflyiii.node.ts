@@ -5,6 +5,7 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	NodeOperationError,
 } from 'n8n-workflow';
 
 import { fireflyApiRequest } from './utils/ApiRequest';
@@ -27,6 +28,7 @@ import {
 	rulesAndGroupsOperations,
 } from './actions/rules/rulesAndGroups.resource';
 import { billsOperations, billsFields } from './actions/bills/bills.resource';
+import { budgetsOperations, budgetsFields } from './actions/budgets/budgets.resource';
 import { fireflyApiRequestV2 } from './utils/ApiRequestV2';
 
 // Helper Function: Handle Create and Update Transactions
@@ -144,6 +146,13 @@ export class Fireflyiii implements INodeType {
 						value: 'bills',
 						description: "Endpoints deliver all of the user's bills and CRUD operations by Bill",
 					},
+					// Budgets resource
+					{
+						name: 'Budgets API',
+						value: 'budgets',
+						description:
+							"Endpoints deliver all of the user's budgets, budget limits, and CRUD operations",
+					},
 					// Transactions resource
 					{
 						name: 'Transactions API',
@@ -179,6 +188,7 @@ export class Fireflyiii implements INodeType {
 			...billsOperations,
 			...transactionsOperations,
 			...categoriesOperations,
+			...budgetsOperations,
 			...tagsOperations,
 			...rulesAndGroupsOperations,
 			// Global optional X-Trace-ID header for all requests
@@ -196,6 +206,7 @@ export class Fireflyiii implements INodeType {
 			...exportFields,
 			...aboutFields,
 			...accountsFields,
+			...budgetsFields,
 			...billsFields,
 			...transactionsFields,
 			...categoriesFields,
@@ -588,6 +599,240 @@ export class Fireflyiii implements INodeType {
 						query: {
 							...paginationOptions,
 							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//             Budgets API
+			// ----------------------------------
+			else if (resource === 'budgets') {
+				// Budget CRUD Operations
+				if (operation === 'listBudgets') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/budgets',
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getBudget') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}`,
+						query: {
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'createBudget') {
+					const name = this.getNodeParameter('name', i) as string;
+					const budgetFields = this.getNodeParameter('budgetFields', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: '/budgets',
+						body: {
+							name,
+							...budgetFields,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'updateBudget') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const updateFields = this.getNodeParameter('updateFields', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/budgets/${budgetId}`,
+						body: updateFields,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'deleteBudget') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/budgets/${budgetId}`,
+					});
+					returnData.push({ json: response });
+				}
+				// Budget Limit Operations
+				else if (operation === 'listBudgetLimits') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/limits`,
+						query: {
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'createBudgetLimit') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const amount = this.getNodeParameter('amount', i) as string;
+					const start = this.getNodeParameter('start', i) as string;
+					const end = this.getNodeParameter('end', i) as string;
+					const budgetLimitFields = this.getNodeParameter(
+						'budgetLimitFields',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: `/budgets/${budgetId}/limits`,
+						body: {
+							amount,
+							start,
+							end,
+							budget_id: budgetId,
+							...budgetLimitFields,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getBudgetLimit') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const budgetLimitId = this.getNodeParameter('budgetLimitId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/limits/${budgetLimitId}`,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'updateBudgetLimit') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const budgetLimitId = this.getNodeParameter('budgetLimitId', i) as string;
+					const updateLimitFields = this.getNodeParameter(
+						'updateLimitFields',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/budgets/${budgetId}/limits/${budgetLimitId}`,
+						body: updateLimitFields,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'deleteBudgetLimit') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const budgetLimitId = this.getNodeParameter('budgetLimitId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/budgets/${budgetId}/limits/${budgetLimitId}`,
+					});
+					returnData.push({ json: response });
+				}
+				// Additional Operations
+				else if (operation === 'getTransactions') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+					const transactionType = this.getNodeParameter('transactionType', i, 'all') as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/transactions`,
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+							type: transactionType === 'all' ? undefined : transactionType,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getAttachments') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/attachments`,
+						query: {
+							...paginationOptions,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getLimitTransactions') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const budgetLimitId = this.getNodeParameter('budgetLimitId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+					const transactionType = this.getNodeParameter('transactionType', i, 'all') as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/limits/${budgetLimitId}/transactions`,
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+							type: transactionType === 'all' ? undefined : transactionType,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'listAllBudgetLimits') {
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					// Validate required fields
+					if (!dateRangeFilters.start || !dateRangeFilters.end) {
+						throw new NodeOperationError(
+							this.getNode(),
+							'Start and end dates are required for listAllBudgetLimits operation',
+						);
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/budget-limits',
+						query: {
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getTransactionsWithoutBudget') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+					const transactionType = this.getNodeParameter('transactionType', i, 'all') as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/budgets/transactions-without-budget',
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+							type: transactionType === 'all' ? undefined : transactionType,
 						},
 					});
 					returnData.push({ json: response });

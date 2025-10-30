@@ -163,12 +163,36 @@ The `execute()` method in `Fireflyiii.node.ts` follows this pattern:
 ## Development Best Practices
 
 ### Adding New Operations
+
+**IMPORTANT**: Follow the established task documentation pattern located in `.claude/tasks/`:
+
+1. **Design Phase**: Create `DESIGN_[RESOURCE]_ENDPOINT.md` documenting:
+   - API endpoint analysis (all operations, parameters, response formats)
+   - File structure design
+   - Field definitions with types and constraints
+   - Execute method implementation patterns
+   - Integration points with main node file
+   - Special considerations and API quirks
+   - Testing checklist
+
+2. **Implementation Phase**: Follow the design document, then create `[RESOURCE]_IMPLEMENTATION_SUMMARY.md` documenting:
+   - Files created/modified with line counts
+   - All operations implemented
+   - Technical implementation details
+   - Build and quality verification status
+   - Testing checklist and recommendations
+   - Next steps for deployment
+
+**Reference Examples**: See `.claude/tasks/DESIGN_BILLS_ENDPOINT.md` and `.claude/tasks/BILLS_IMPLEMENTATION_SUMMARY.md` for the Bills API implementation pattern.
+
+### Implementation Steps
 1. Create or update resource file in `actions/[resource]/`
 2. Define operation in `[resource]Operations` array
 3. Add operation-specific fields to `[resource]Fields`
 4. Import and spread into main node description: `...transactionsOperations, ...transactionsFields`
 5. Implement operation logic in `execute()` method
 6. Test with actual Firefly III instance
+7. Document implementation in `.claude/tasks/` following established pattern
 
 ### Field Naming Conventions
 - Use camelCase for internal field names (`transactionId`, `sourceAccount`)
