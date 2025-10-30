@@ -60,32 +60,47 @@ Main node implementation containing:
 ### `dist/`
 Build output directory (compiled JavaScript + icons)
 
+### `.claude/docs/`
+Reference documentation for development:
+- **`firefly-iii-6.4.0-v1.yaml`**: Complete OpenAPI specification for Firefly III API v1 (6.4.0). Use this as the authoritative reference for endpoint specifications, request/response formats, and API behavior.
+- **`API_REQUEST_COMPARISON.md`**: Technical comparison between ApiRequest implementations
+- Additional n8n node development guides and code explanations
+
 ## Firefly III API Integration
 
 ### API Structure
 The Firefly III API follows REST conventions with versioned endpoints. This node uses **Firefly III API v1 (6.4.0)** exclusively.
 
 **Implemented Resources:**
-- Transactions (full CRUD + attachments, piggy bank events, splits)
-- Accounts (full CRUD)
-- Bills (full CRUD + attachments, rules, transactions)
-- Categories (full CRUD)
-- Tags (full CRUD)
-- Rules & Rule Groups (full CRUD)
-- Budgets (read-only)
-- Search (query-based search with pagination)
-- Export (data export functionality)
-- System information (about, preferences, cron)
+- **General Operations** (`/api/v1/search/*`, `/api/v1/data/export`, `/api/v1/insight/*`): Search, export, insights (3 operations)
+- **About** (`/api/v1/about`, `/api/v1/cron/*`): System info, user info, cron jobs (3 operations)
+- **Accounts** (`/api/v1/accounts/*`): Full CRUD + related transactions, attachments, piggy banks (6 operations)
+- **Bills** (`/api/v1/bills/*`): Full CRUD + attachments, rules, transactions (8 operations)
+- **Budgets** (`/api/v1/budgets/*`): Full CRUD + limits, spent amounts, transactions (15 operations)
+- **Transactions** (`/api/v1/transactions/*`): Full CRUD + attachments, piggy bank events, splits (6 operations)
+- **Categories** (`/api/v1/categories/*`): Full CRUD + transactions (6 operations)
+- **Tags** (`/api/v1/tags/*`): Full CRUD + transactions, attachments (7 operations)
+- **Rules & Rule Groups** (`/api/v1/rules/*`, `/api/v1/rule-groups/*`): Full CRUD + testing, triggering (14 operations)
 
-**Not Yet Implemented:**
-- Attachments (as standalone resource)
-- Currencies
-- Object Groups
-- Piggy Banks (as standalone resource)
-- Recurrences (partial)
-- Webhooks
+**API Endpoints Not Yet Implemented:**
+- Attachments (as standalone resource - `/api/v1/attachments/*`)
+- Autocomplete (`/api/v1/autocomplete/*`)
+- Available Budgets (`/api/v1/available-budgets/*`)
+- Charts (`/api/v1/chart/*`)
+- Configuration (`/api/v1/configuration/*`)
+- Currencies (`/api/v1/currencies/*`)
+- Currency Exchange Rates (`/api/v1/cer/*`)
+- Links (`/api/v1/transaction-links/*`, `/api/v1/link-types/*`)
+- Object Groups (`/api/v1/object-groups/*`)
+- Piggy Banks (as standalone resource - `/api/v1/piggy-banks/*`)
+- Preferences (`/api/v1/preferences/*`)
+- Recurrences (`/api/v1/recurrences/*`)
+- Summary (`/api/v1/summary/*`)
+- Webhooks (`/api/v1/webhooks/*`)
 
-Refer to [Firefly III API Documentation](https://api-docs.firefly-iii.org/) for endpoint specifications.
+**API Reference:**
+- [Firefly III API Documentation](https://api-docs.firefly-iii.org/) - Official online documentation
+- `.claude/docs/firefly-iii-6.4.0-v1.yaml` - Complete OpenAPI specification (authoritative reference)
 
 ### Authentication Pattern
 The node uses **OAuth2 with PKCE** grant type. Users must:
