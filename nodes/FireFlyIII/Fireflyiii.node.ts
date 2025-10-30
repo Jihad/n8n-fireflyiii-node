@@ -29,6 +29,7 @@ import {
 } from './actions/rules/rulesAndGroups.resource';
 import { billsOperations, billsFields } from './actions/bills/bills.resource';
 import { budgetsOperations, budgetsFields } from './actions/budgets/budgets.resource';
+import { piggyBanksOperations, piggyBanksFields } from './actions/piggyBanks/piggyBanks.resource';
 import { fireflyApiRequestV2 } from './utils/ApiRequestV2';
 
 // Helper Function: Handle Create and Update Transactions
@@ -178,6 +179,12 @@ export class Fireflyiii implements INodeType {
 						value: 'rulesAndGroups',
 						description: 'Endpoints for rules and rule groups',
 					},
+					// Piggy Banks resource
+					{
+						name: 'Piggy Banks API',
+						value: 'piggyBanks',
+						description: 'Endpoints to manage piggy banks and savings goals',
+					},
 				],
 				default: 'about',
 			},
@@ -191,6 +198,7 @@ export class Fireflyiii implements INodeType {
 			...budgetsOperations,
 			...tagsOperations,
 			...rulesAndGroupsOperations,
+			...piggyBanksOperations,
 			// Global optional X-Trace-ID header for all requests
 			{
 				displayName: 'X-Trace-ID',
@@ -212,6 +220,7 @@ export class Fireflyiii implements INodeType {
 			...categoriesFields,
 			...tagsFields,
 			...rulesAndGroupsFields,
+			...piggyBanksFields,
 		],
 	};
 
@@ -1278,6 +1287,231 @@ export class Fireflyiii implements INodeType {
 						query: {
 							...dateRangeFilters,
 							...parsedAcconuts,
+						},
+					});
+
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//         Piggy Banks
+			// ----------------------------------
+			else if (resource === 'piggyBanks') {
+				if (operation === 'listPiggyBanks') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/piggy-banks',
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getPiggyBank') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/piggy-banks/${piggyBankId}`,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'createPiggyBank') {
+					const name = this.getNodeParameter('name', i) as string;
+					const targetAmount = this.getNodeParameter('targetAmount', i) as string;
+					const startDate = this.getNodeParameter('startDate', i) as string;
+					const currencyCode = this.getNodeParameter('currencyCode', i, '') as string;
+					const additionalFields = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
+					const accountsData = this.getNodeParameter('accountsData', i, {}) as IDataObject;
+
+					// Build the accounts array from fixedCollection
+					const accountsArray = ((accountsData.account as IDataObject[]) || []).map((account) => {
+						const accountObj: IDataObject = {};
+
+						// Add all fields from the account object (already in snake_case from field definitions)
+						if (account.account_id) {
+							accountObj.account_id = account.account_id;
+						}
+						if (account.name) {
+							accountObj.name = account.name;
+						}
+						if (account.current_amount) {
+							accountObj.current_amount = account.current_amount;
+						}
+
+						return accountObj;
+					});
+
+					const body: IDataObject = {
+						name,
+						accounts: accountsArray,
+						target_amount: targetAmount,
+						start_date: startDate,
+					};
+
+					// Add currency code if provided (from main parameter)
+					if (currencyCode) {
+						body.transaction_currency_code = currencyCode;
+					}
+					// Add currency ID if provided (from additional fields as alternative)
+					if (additionalFields.currencyId) {
+						body.transaction_currency_id = additionalFields.currencyId;
+					}
+
+					// Handle other optional fields
+					if (additionalFields.targetDate) {
+						body.target_date = additionalFields.targetDate;
+					}
+					if (additionalFields.order !== undefined) {
+						body.order = additionalFields.order;
+					}
+					if (additionalFields.notes) {
+						body.notes = additionalFields.notes;
+					}
+					if (additionalFields.objectGroupId) {
+						body.object_group_id = additionalFields.objectGroupId;
+					}
+					if (additionalFields.objectGroupTitle) {
+						body.object_group_title = additionalFields.objectGroupTitle;
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: '/piggy-banks',
+						body,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'updatePiggyBank') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+					const updateAccountsData = this.getNodeParameter(
+						'updateAccountsData',
+						i,
+						{},
+					) as IDataObject;
+					const updateName = this.getNodeParameter('updateName', i, '') as string;
+					const updateTargetAmount = this.getNodeParameter('updateTargetAmount', i, '') as string;
+					const updateStartDate = this.getNodeParameter('updateStartDate', i, '') as string;
+					const updateCurrencyCode = this.getNodeParameter('updateCurrencyCode', i, '') as string;
+					const updateFields = this.getNodeParameter('updateFields', i, {}) as IDataObject;
+
+					const body: IDataObject = {};
+
+					// Build the accounts array from fixedCollection if provided
+					if (
+						updateAccountsData.account &&
+						(updateAccountsData.account as IDataObject[]).length > 0
+					) {
+						const accountsArray = ((updateAccountsData.account as IDataObject[]) || []).map(
+							(account) => {
+								const accountObj: IDataObject = {};
+
+								if (account.account_id) {
+									accountObj.account_id = account.account_id;
+								}
+								if (account.name) {
+									accountObj.name = account.name;
+								}
+								if (account.current_amount) {
+									accountObj.current_amount = account.current_amount;
+								}
+
+								return accountObj;
+							},
+						);
+						body.accounts = accountsArray;
+					}
+
+					// Add main fields if provided
+					if (updateName) {
+						body.name = updateName;
+					}
+					if (updateTargetAmount) {
+						body.target_amount = updateTargetAmount;
+					}
+					if (updateStartDate) {
+						body.start_date = updateStartDate;
+					}
+
+					// Add currency code if provided
+					if (updateCurrencyCode) {
+						body.transaction_currency_code = updateCurrencyCode;
+					}
+
+					// Add currency ID if provided (from additional fields as alternative)
+					if (updateFields.currencyId) {
+						body.transaction_currency_id = updateFields.currencyId;
+					}
+
+					// Handle other optional fields from additional fields
+					if (updateFields.targetDate) {
+						body.target_date = updateFields.targetDate;
+					}
+					if (updateFields.order !== undefined) {
+						body.order = updateFields.order;
+					}
+					if (updateFields.notes) {
+						body.notes = updateFields.notes;
+					}
+					if (updateFields.objectGroupId) {
+						body.object_group_id = updateFields.objectGroupId;
+					}
+					if (updateFields.objectGroupTitle) {
+						body.object_group_title = updateFields.objectGroupTitle;
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/piggy-banks/${piggyBankId}`,
+						body,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'deletePiggyBank') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+
+					await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/piggy-banks/${piggyBankId}`,
+					});
+
+					returnData.push({ json: { success: true, id: piggyBankId } });
+				} else if (operation === 'getEvents') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/piggy-banks/${piggyBankId}/events`,
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getAttachments') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/piggy-banks/${piggyBankId}/attachments`,
+						query: {
+							...paginationOptions,
 						},
 					});
 

@@ -45,9 +45,11 @@ Main node implementation containing:
   - `transactions/` - Create, list, update, delete transactions
   - `accounts/` - Account management
   - `bills/` - Bill management (full CRUD + attachments, rules, transactions)
+  - `budgets/` - Budget management (full CRUD + limits, transactions)
   - `categories/` - Category operations
   - `tags/` - Tag management
   - `rules/` - Rule and rule group operations
+  - `piggyBanks/` - Piggy bank management (full CRUD + events, attachments)
   - `general/` - Export, insights, search operations
   - `about/` - System information
 - **`utils/`**: Shared utilities
@@ -81,6 +83,7 @@ The Firefly III API follows REST conventions with versioned endpoints. This node
 - **Categories** (`/api/v1/categories/*`): Full CRUD + transactions (6 operations)
 - **Tags** (`/api/v1/tags/*`): Full CRUD + transactions, attachments (7 operations)
 - **Rules & Rule Groups** (`/api/v1/rules/*`, `/api/v1/rule-groups/*`): Full CRUD + testing, triggering (14 operations)
+- **Piggy Banks** (`/api/v1/piggy-banks/*`): Full CRUD + events, attachments (7 operations)
 
 **API Endpoints Not Yet Implemented:**
 - Attachments (as standalone resource - `/api/v1/attachments/*`)
@@ -92,7 +95,6 @@ The Firefly III API follows REST conventions with versioned endpoints. This node
 - Currency Exchange Rates (`/api/v1/cer/*`)
 - Links (`/api/v1/transaction-links/*`, `/api/v1/link-types/*`)
 - Object Groups (`/api/v1/object-groups/*`)
-- Piggy Banks (as standalone resource - `/api/v1/piggy-banks/*`)
 - Preferences (`/api/v1/preferences/*`)
 - Recurrences (`/api/v1/recurrences/*`)
 - Summary (`/api/v1/summary/*`)
