@@ -34,6 +34,10 @@ import {
 	objectGroupsOperations,
 	objectGroupsFields,
 } from './actions/objectGroups/objectGroups.resource';
+import {
+	availableBudgetsOperations,
+	availableBudgetsFields,
+} from './actions/availableBudgets/availableBudgets.resource';
 import { fireflyApiRequestV2 } from './utils/ApiRequestV2';
 
 // Helper Function: Handle Create and Update Transactions
@@ -145,6 +149,12 @@ export class Fireflyiii implements INodeType {
 						description:
 							"Endpoints deliver all of the user's asset, expense and other CRUD operations by Account",
 					},
+					// Available Budgets resource
+					{
+						name: 'Available Budgets API',
+						value: 'availableBudgets',
+						description: 'Endpoints to view calculated available budget amounts (read-only)',
+					},
 					// Bills resource
 					{
 						name: 'Bills API',
@@ -210,6 +220,7 @@ export class Fireflyiii implements INodeType {
 			...rulesAndGroupsOperations,
 			...piggyBanksOperations,
 			...objectGroupsOperations,
+			...availableBudgetsOperations,
 			// Global optional X-Trace-ID header for all requests
 			{
 				displayName: 'X-Trace-ID',
@@ -233,6 +244,7 @@ export class Fireflyiii implements INodeType {
 			...rulesAndGroupsFields,
 			...piggyBanksFields,
 			...objectGroupsFields,
+			...availableBudgetsFields,
 		],
 	};
 
@@ -1614,6 +1626,39 @@ export class Fireflyiii implements INodeType {
 						query: {
 							...paginationOptions,
 						},
+					});
+
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//       Available Budgets API
+			// ----------------------------------
+			else if (resource === 'availableBudgets') {
+				if (operation === 'listAvailableBudgets') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/available-budgets',
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getAvailableBudget') {
+					const availableBudgetId = this.getNodeParameter('availableBudgetId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/available-budgets/${availableBudgetId}`,
 					});
 
 					returnData.push({ json: response });

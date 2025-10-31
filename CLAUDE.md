@@ -78,6 +78,7 @@ The Firefly III API follows REST conventions with versioned endpoints. This node
 - **General Operations** (`/api/v1/search/*`, `/api/v1/data/export`, `/api/v1/insight/*`): Search, export, insights (3 operations)
 - **About** (`/api/v1/about`, `/api/v1/cron/*`): System info, user info, cron jobs (3 operations)
 - **Accounts** (`/api/v1/accounts/*`): Full CRUD + related transactions, attachments, piggy banks (6 operations)
+- **Available Budgets** (`/api/v1/available-budgets/*`): total available amount that the user has made available to themselves. (2 operations)
 - **Bills** (`/api/v1/bills/*`): Full CRUD + attachments, rules, transactions (8 operations)
 - **Budgets** (`/api/v1/budgets/*`): Full CRUD + limits, spent amounts, transactions (15 operations)
 - **Transactions** (`/api/v1/transactions/*`): Full CRUD + attachments, piggy bank events, splits (6 operations)
@@ -91,7 +92,6 @@ The Firefly III API follows REST conventions with versioned endpoints. This node
 **API Endpoints Not Yet Implemented:**
 - Attachments (as standalone resource - `/api/v1/attachments/*`)
 - Autocomplete (`/api/v1/autocomplete/*`)
-- Available Budgets (`/api/v1/available-budgets/*`)
 - Charts (`/api/v1/chart/*`)
 - Configuration (`/api/v1/configuration/*`)
 - Currencies (`/api/v1/currencies/*`)
