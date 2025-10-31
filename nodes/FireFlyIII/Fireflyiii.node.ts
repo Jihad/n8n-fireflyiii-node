@@ -38,6 +38,10 @@ import {
 	availableBudgetsOperations,
 	availableBudgetsFields,
 } from './actions/availableBudgets/availableBudgets.resource';
+import {
+	recurrencesOperations,
+	recurrencesFields,
+} from './actions/recurrences/recurrences.resource';
 import { fireflyApiRequestV2 } from './utils/ApiRequestV2';
 
 // Helper Function: Handle Create and Update Transactions
@@ -205,6 +209,12 @@ export class Fireflyiii implements INodeType {
 						value: 'objectGroups',
 						description: 'Endpoints to manage object groups (auto-created via bills/piggy banks)',
 					},
+					// Recurrences resource
+					{
+						name: 'Recurrences API',
+						value: 'recurrences',
+						description: 'Endpoints to manage recurring transactions and trigger their execution',
+					},
 				],
 				default: 'about',
 			},
@@ -221,6 +231,7 @@ export class Fireflyiii implements INodeType {
 			...piggyBanksOperations,
 			...objectGroupsOperations,
 			...availableBudgetsOperations,
+			...recurrencesOperations,
 			// Global optional X-Trace-ID header for all requests
 			{
 				displayName: 'X-Trace-ID',
@@ -245,6 +256,7 @@ export class Fireflyiii implements INodeType {
 			...piggyBanksFields,
 			...objectGroupsFields,
 			...availableBudgetsFields,
+			...recurrencesFields,
 		],
 	};
 
@@ -1659,6 +1671,279 @@ export class Fireflyiii implements INodeType {
 					const response = await fireflyApiRequest.call(this, {
 						method: 'GET',
 						endpoint: `/available-budgets/${availableBudgetId}`,
+					});
+
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//       Recurrences API
+			// ----------------------------------
+			else if (resource === 'recurrences') {
+				if (operation === 'listRecurrences') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/recurrences',
+						query: paginationOptions,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getRecurrence') {
+					const recurrenceId = this.getNodeParameter('recurrenceId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/recurrences/${recurrenceId}`,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'createRecurrence') {
+					// Required fields
+					const type = this.getNodeParameter('type', i) as string;
+					const title = this.getNodeParameter('title', i) as string;
+					const first_date = this.getNodeParameter('first_date', i) as string;
+
+					// Optional settings
+					const recurrenceSettings = this.getNodeParameter(
+						'recurrenceSettings',
+						i,
+						{},
+					) as IDataObject;
+
+					// Fixed collections
+					const repetitionsData = this.getNodeParameter('repetitions', i, {}) as IDataObject;
+					const transactionsData = this.getNodeParameter('transactions', i, {}) as IDataObject;
+
+					// Build repetitions array
+					const repetitions: any[] = [];
+					if (repetitionsData.repetition && Array.isArray(repetitionsData.repetition)) {
+						for (const rep of repetitionsData.repetition) {
+							repetitions.push({
+								type: rep.type,
+								moment: rep.moment,
+								skip: rep.skip,
+								weekend: rep.weekend,
+							});
+						}
+					}
+
+					// Build transactions array
+					const transactions: any[] = [];
+					if (transactionsData.transaction && Array.isArray(transactionsData.transaction)) {
+						for (const txn of transactionsData.transaction) {
+							const transactionDetails = txn.transactionDetails || {};
+
+							// Handle tags conversion (comma-separated string to array)
+							let tags = null;
+							if (transactionDetails.tags) {
+								const parsedTags = parseCommaSeparatedFields({
+									tags: transactionDetails.tags as string,
+								});
+								tags = parsedTags.tags;
+							}
+
+							transactions.push({
+								description: txn.description,
+								amount: txn.amount,
+								source_id: txn.source_id,
+								destination_id: txn.destination_id,
+								currency_id: transactionDetails.currency_id || undefined,
+								currency_code: transactionDetails.currency_code || undefined,
+								foreign_amount: transactionDetails.foreign_amount || undefined,
+								foreign_currency_id: transactionDetails.foreign_currency_id || undefined,
+								foreign_currency_code: transactionDetails.foreign_currency_code || undefined,
+								budget_id: transactionDetails.budget_id || undefined,
+								category_id: transactionDetails.category_id || undefined,
+								tags: tags || undefined,
+								piggy_bank_id: transactionDetails.piggy_bank_id || undefined,
+								bill_id: transactionDetails.bill_id || undefined,
+							});
+						}
+					}
+
+					// Format first_date to YYYY-MM-DD
+					const formattedFirstDate = first_date.split('T')[0];
+
+					// Format repeat_until if present
+					let formattedRepeatUntil = recurrenceSettings.repeat_until;
+					if (formattedRepeatUntil) {
+						formattedRepeatUntil = (formattedRepeatUntil as string).split('T')[0];
+					}
+
+					// Build request body
+					const body: IDataObject = {
+						type,
+						title,
+						first_date: formattedFirstDate,
+						...recurrenceSettings,
+						repeat_until: formattedRepeatUntil || undefined,
+						repetitions,
+						transactions,
+					};
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: '/recurrences',
+						body,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'updateRecurrence') {
+					const recurrenceId = this.getNodeParameter('recurrenceId', i) as string;
+					const recurrenceSettings = this.getNodeParameter(
+						'recurrenceSettings',
+						i,
+						{},
+					) as IDataObject;
+
+					// Fixed collections (both optional for update)
+					const repetitionsData = this.getNodeParameter('repetitions', i, {}) as IDataObject;
+					const transactionsData = this.getNodeParameter('transactions', i, {}) as IDataObject;
+
+					// Build repetitions array (only if provided)
+					let repetitions: any[] | undefined = undefined;
+					if (repetitionsData.repetition && Array.isArray(repetitionsData.repetition)) {
+						repetitions = [];
+
+						for (const rep of repetitionsData.repetition) {
+							repetitions.push({
+								type: rep.type,
+								moment: rep.moment,
+								skip: rep.skip,
+								weekend: rep.weekend,
+							});
+						}
+					}
+
+					// Build transactions array (only if provided, include ID for update)
+					let transactions: any[] | undefined = undefined;
+					if (transactionsData.transaction && Array.isArray(transactionsData.transaction)) {
+						transactions = [];
+						for (const txn of transactionsData.transaction) {
+							const transactionDetails = txn.transactionDetails || {};
+
+							// Handle tags conversion
+							let tags = null;
+							if (transactionDetails.tags) {
+								const parsedTags = parseCommaSeparatedFields({
+									tags: transactionDetails.tags as string,
+								});
+								tags = parsedTags.tags;
+							}
+
+							// Build transaction object with only provided fields
+							const transaction: IDataObject = {
+								id: txn.id || undefined, // Include ID for update
+							};
+
+							// Only include fields that are provided (not empty strings)
+							if (transactionDetails.description) {
+								transaction.description = transactionDetails.description;
+							}
+							if (transactionDetails.amount) {
+								transaction.amount = transactionDetails.amount;
+							}
+							if (transactionDetails.source_id) {
+								transaction.source_id = transactionDetails.source_id;
+							}
+							if (transactionDetails.destination_id) {
+								transaction.destination_id = transactionDetails.destination_id;
+							}
+							if (transactionDetails.currency_id) {
+								transaction.currency_id = transactionDetails.currency_id;
+							}
+							if (transactionDetails.currency_code) {
+								transaction.currency_code = transactionDetails.currency_code;
+							}
+							if (transactionDetails.foreign_amount) {
+								transaction.foreign_amount = transactionDetails.foreign_amount;
+							}
+							if (transactionDetails.foreign_currency_id) {
+								transaction.foreign_currency_id = transactionDetails.foreign_currency_id;
+							}
+							if (transactionDetails.foreign_currency_code) {
+								transaction.foreign_currency_code = transactionDetails.foreign_currency_code;
+							}
+							if (transactionDetails.budget_id) {
+								transaction.budget_id = transactionDetails.budget_id;
+							}
+							if (transactionDetails.category_id) {
+								transaction.category_id = transactionDetails.category_id;
+							}
+							if (tags) {
+								transaction.tags = tags;
+							}
+							if (transactionDetails.piggy_bank_id) {
+								transaction.piggy_bank_id = transactionDetails.piggy_bank_id;
+							}
+							if (transactionDetails.bill_id) {
+								transaction.bill_id = transactionDetails.bill_id;
+							}
+
+							transactions.push(transaction);
+						}
+					}
+
+					// Format first_date if present in settings
+					let formattedFirstDate = recurrenceSettings.first_date;
+					if (formattedFirstDate) {
+						formattedFirstDate = (formattedFirstDate as string).split('T')[0];
+					}
+
+					// Format repeat_until if present
+					let formattedRepeatUntil = recurrenceSettings.repeat_until;
+					if (formattedRepeatUntil) {
+						formattedRepeatUntil = (formattedRepeatUntil as string).split('T')[0];
+					}
+
+					// Build body with only provided fields
+					const body: IDataObject = {
+						...recurrenceSettings,
+						first_date: formattedFirstDate || undefined,
+						repeat_until: formattedRepeatUntil || undefined,
+					};
+
+					// Only include repetitions and transactions if they were provided
+					if (repetitions !== undefined) {
+						body.repetitions = repetitions;
+					}
+					if (transactions !== undefined) {
+						body.transactions = transactions;
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/recurrences/${recurrenceId}`,
+						body,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'deleteRecurrence') {
+					const recurrenceId = this.getNodeParameter('recurrenceId', i) as string;
+
+					await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/recurrences/${recurrenceId}`,
+					});
+
+					returnData.push({ json: { success: true } });
+				} else if (operation === 'triggerRecurrence') {
+					const recurrenceId = this.getNodeParameter('recurrenceId', i) as string;
+					const date = this.getNodeParameter('date', i) as string;
+
+					// Format date to YYYY-MM-DD
+					const formattedDate = date.split('T')[0];
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: `/recurrences/${recurrenceId}/trigger`,
+						query: { date: formattedDate },
 					});
 
 					returnData.push({ json: response });

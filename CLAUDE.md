@@ -88,6 +88,8 @@ The Firefly III API follows REST conventions with versioned endpoints. This node
 - **Piggy Banks** (`/api/v1/piggy-banks/*`): Full CRUD + events, attachments (7 operations)
 - **Object Groups** (`/api/v1/object-groups/*`): List, get, update, delete + related bills/piggy banks (6 operations)
   - **Note**: Object groups cannot be created directly; they are auto-created when bills or piggy banks use `object_group_title` parameter
+- **Recurrences** (`/api/v1/recurrences/*`): Full CRUD + trigger operations for recurring transactions (6 operations)
+  - **Note**: Complex nested structures for repetitions (schedule patterns) and transactions (transaction details)
 
 **API Endpoints Not Yet Implemented:**
 - Attachments (as standalone resource - `/api/v1/attachments/*`)
@@ -98,7 +100,6 @@ The Firefly III API follows REST conventions with versioned endpoints. This node
 - Currency Exchange Rates (`/api/v1/cer/*`)
 - Links (`/api/v1/transaction-links/*`, `/api/v1/link-types/*`)
 - Preferences (`/api/v1/preferences/*`)
-- Recurrences (`/api/v1/recurrences/*`)
 - Summary (`/api/v1/summary/*`)
 - Webhooks (`/api/v1/webhooks/*`)
 
