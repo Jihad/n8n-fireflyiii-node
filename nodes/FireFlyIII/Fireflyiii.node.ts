@@ -30,6 +30,10 @@ import {
 import { billsOperations, billsFields } from './actions/bills/bills.resource';
 import { budgetsOperations, budgetsFields } from './actions/budgets/budgets.resource';
 import { piggyBanksOperations, piggyBanksFields } from './actions/piggyBanks/piggyBanks.resource';
+import {
+	objectGroupsOperations,
+	objectGroupsFields,
+} from './actions/objectGroups/objectGroups.resource';
 import { fireflyApiRequestV2 } from './utils/ApiRequestV2';
 
 // Helper Function: Handle Create and Update Transactions
@@ -185,6 +189,12 @@ export class Fireflyiii implements INodeType {
 						value: 'piggyBanks',
 						description: 'Endpoints to manage piggy banks and savings goals',
 					},
+					// Object Groups resource
+					{
+						name: 'Object Groups API',
+						value: 'objectGroups',
+						description: 'Endpoints to manage object groups (auto-created via bills/piggy banks)',
+					},
 				],
 				default: 'about',
 			},
@@ -199,6 +209,7 @@ export class Fireflyiii implements INodeType {
 			...tagsOperations,
 			...rulesAndGroupsOperations,
 			...piggyBanksOperations,
+			...objectGroupsOperations,
 			// Global optional X-Trace-ID header for all requests
 			{
 				displayName: 'X-Trace-ID',
@@ -221,6 +232,7 @@ export class Fireflyiii implements INodeType {
 			...tagsFields,
 			...rulesAndGroupsFields,
 			...piggyBanksFields,
+			...objectGroupsFields,
 		],
 	};
 
@@ -1510,6 +1522,95 @@ export class Fireflyiii implements INodeType {
 					const response = await fireflyApiRequest.call(this, {
 						method: 'GET',
 						endpoint: `/piggy-banks/${piggyBankId}/attachments`,
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//          Object Groups API
+			// ----------------------------------
+			else if (resource === 'objectGroups') {
+				if (operation === 'listObjectGroups') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/object-groups',
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getObjectGroup') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/object-groups/${objectGroupId}`,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'updateObjectGroup') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+					const title = this.getNodeParameter('title', i) as string;
+					const updateFields = this.getNodeParameter('updateFields', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/object-groups/${objectGroupId}`,
+						body: {
+							title,
+							...updateFields,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'deleteObjectGroup') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+
+					await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/object-groups/${objectGroupId}`,
+					});
+
+					returnData.push({ json: { success: true, id: objectGroupId } });
+				} else if (operation === 'getBills') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/object-groups/${objectGroupId}/bills`,
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getPiggyBanks') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/object-groups/${objectGroupId}/piggy-banks`,
 						query: {
 							...paginationOptions,
 						},
