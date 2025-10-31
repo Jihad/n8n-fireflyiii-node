@@ -5,6 +5,7 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	NodeOperationError,
 } from 'n8n-workflow';
 
 import { fireflyApiRequest } from './utils/ApiRequest';
@@ -26,6 +27,21 @@ import {
 	rulesAndGroupsFields,
 	rulesAndGroupsOperations,
 } from './actions/rules/rulesAndGroups.resource';
+import { billsOperations, billsFields } from './actions/bills/bills.resource';
+import { budgetsOperations, budgetsFields } from './actions/budgets/budgets.resource';
+import { piggyBanksOperations, piggyBanksFields } from './actions/piggyBanks/piggyBanks.resource';
+import {
+	objectGroupsOperations,
+	objectGroupsFields,
+} from './actions/objectGroups/objectGroups.resource';
+import {
+	availableBudgetsOperations,
+	availableBudgetsFields,
+} from './actions/availableBudgets/availableBudgets.resource';
+import {
+	recurrencesOperations,
+	recurrencesFields,
+} from './actions/recurrences/recurrences.resource';
 import { fireflyApiRequestV2 } from './utils/ApiRequestV2';
 
 // Helper Function: Handle Create and Update Transactions
@@ -137,6 +153,25 @@ export class Fireflyiii implements INodeType {
 						description:
 							"Endpoints deliver all of the user's asset, expense and other CRUD operations by Account",
 					},
+					// Available Budgets resource
+					{
+						name: 'Available Budgets API',
+						value: 'availableBudgets',
+						description: 'Endpoints to view calculated available budget amounts (read-only)',
+					},
+					// Bills resource
+					{
+						name: 'Bills API',
+						value: 'bills',
+						description: "Endpoints deliver all of the user's bills and CRUD operations by Bill",
+					},
+					// Budgets resource
+					{
+						name: 'Budgets API',
+						value: 'budgets',
+						description:
+							"Endpoints deliver all of the user's budgets, budget limits, and CRUD operations",
+					},
 					// Transactions resource
 					{
 						name: 'Transactions API',
@@ -162,6 +197,24 @@ export class Fireflyiii implements INodeType {
 						value: 'rulesAndGroups',
 						description: 'Endpoints for rules and rule groups',
 					},
+					// Piggy Banks resource
+					{
+						name: 'Piggy Banks API',
+						value: 'piggyBanks',
+						description: 'Endpoints to manage piggy banks and savings goals',
+					},
+					// Object Groups resource
+					{
+						name: 'Object Groups API',
+						value: 'objectGroups',
+						description: 'Endpoints to manage object groups (auto-created via bills/piggy banks)',
+					},
+					// Recurrences resource
+					{
+						name: 'Recurrences API',
+						value: 'recurrences',
+						description: 'Endpoints to manage recurring transactions and trigger their execution',
+					},
 				],
 				default: 'about',
 			},
@@ -169,10 +222,16 @@ export class Fireflyiii implements INodeType {
 			...generalOperations,
 			...aboutOperations,
 			...accountsOperations,
+			...billsOperations,
 			...transactionsOperations,
 			...categoriesOperations,
+			...budgetsOperations,
 			...tagsOperations,
 			...rulesAndGroupsOperations,
+			...piggyBanksOperations,
+			...objectGroupsOperations,
+			...availableBudgetsOperations,
+			...recurrencesOperations,
 			// Global optional X-Trace-ID header for all requests
 			{
 				displayName: 'X-Trace-ID',
@@ -188,10 +247,16 @@ export class Fireflyiii implements INodeType {
 			...exportFields,
 			...aboutFields,
 			...accountsFields,
+			...budgetsFields,
+			...billsFields,
 			...transactionsFields,
 			...categoriesFields,
 			...tagsFields,
 			...rulesAndGroupsFields,
+			...piggyBanksFields,
+			...objectGroupsFields,
+			...availableBudgetsFields,
+			...recurrencesFields,
 		],
 	};
 
@@ -301,9 +366,7 @@ export class Fireflyiii implements INodeType {
 						}
 					}
 					// Prepare binary data
-					const binaryData = await this.helpers.prepareBinaryData(
-						response.body, fileName,
-					);
+					const binaryData = await this.helpers.prepareBinaryData(response.body, fileName);
 
 					returnData.push({
 						json: {},
@@ -454,6 +517,368 @@ export class Fireflyiii implements INodeType {
 					const response = await fireflyApiRequest.call(this, {
 						method: 'DELETE',
 						endpoint: `/accounts/${accountId}`,
+					});
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//             Bills API
+			// ----------------------------------
+			else if (resource === 'bills') {
+				if (operation === 'listBills') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/bills',
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getBill') {
+					const billId = this.getNodeParameter('billId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/bills/${billId}`,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'createBill') {
+					const name = this.getNodeParameter('name', i) as string;
+					const amount_min = this.getNodeParameter('amount_min', i) as number;
+					const amount_max = this.getNodeParameter('amount_max', i) as number;
+					const date = this.getNodeParameter('date', i) as string;
+					const repeat_freq = this.getNodeParameter('repeat_freq', i) as string;
+					const billFields = this.getNodeParameter('billFields', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: '/bills',
+						body: {
+							name,
+							amount_min: String(amount_min),
+							amount_max: String(amount_max),
+							date,
+							repeat_freq,
+							...billFields,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'updateBill') {
+					const billId = this.getNodeParameter('billId', i) as string;
+					const updateFields = this.getNodeParameter('updateFields', i, {}) as IDataObject;
+
+					// Convert numeric amounts to strings if present
+					if (updateFields.amount_min) {
+						updateFields.amount_min = String(updateFields.amount_min);
+					}
+					if (updateFields.amount_max) {
+						updateFields.amount_max = String(updateFields.amount_max);
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/bills/${billId}`,
+						body: updateFields,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'deleteBill') {
+					const billId = this.getNodeParameter('billId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/bills/${billId}`,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getAttachments') {
+					const billId = this.getNodeParameter('billId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/bills/${billId}/attachments`,
+						query: {
+							...paginationOptions,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getRules') {
+					const billId = this.getNodeParameter('billId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/bills/${billId}/rules`,
+						query: {
+							...paginationOptions,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getTransactions') {
+					const billId = this.getNodeParameter('billId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/bills/${billId}/transactions`,
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//             Budgets API
+			// ----------------------------------
+			else if (resource === 'budgets') {
+				// Budget CRUD Operations
+				if (operation === 'listBudgets') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/budgets',
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getBudget') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}`,
+						query: {
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'createBudget') {
+					const name = this.getNodeParameter('name', i) as string;
+					const budgetFields = this.getNodeParameter('budgetFields', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: '/budgets',
+						body: {
+							name,
+							...budgetFields,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'updateBudget') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const updateFields = this.getNodeParameter('updateFields', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/budgets/${budgetId}`,
+						body: updateFields,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'deleteBudget') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/budgets/${budgetId}`,
+					});
+					returnData.push({ json: response });
+				}
+				// Budget Limit Operations
+				else if (operation === 'listBudgetLimits') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/limits`,
+						query: {
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'createBudgetLimit') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const amount = this.getNodeParameter('amount', i) as string;
+					const start = this.getNodeParameter('start', i) as string;
+					const end = this.getNodeParameter('end', i) as string;
+					const budgetLimitFields = this.getNodeParameter(
+						'budgetLimitFields',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: `/budgets/${budgetId}/limits`,
+						body: {
+							amount,
+							start,
+							end,
+							budget_id: budgetId,
+							...budgetLimitFields,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getBudgetLimit') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const budgetLimitId = this.getNodeParameter('budgetLimitId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/limits/${budgetLimitId}`,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'updateBudgetLimit') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const budgetLimitId = this.getNodeParameter('budgetLimitId', i) as string;
+					const updateLimitFields = this.getNodeParameter(
+						'updateLimitFields',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/budgets/${budgetId}/limits/${budgetLimitId}`,
+						body: updateLimitFields,
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'deleteBudgetLimit') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const budgetLimitId = this.getNodeParameter('budgetLimitId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/budgets/${budgetId}/limits/${budgetLimitId}`,
+					});
+					returnData.push({ json: response });
+				}
+				// Additional Operations
+				else if (operation === 'getTransactions') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+					const transactionType = this.getNodeParameter('transactionType', i, 'all') as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/transactions`,
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+							type: transactionType === 'all' ? undefined : transactionType,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getAttachments') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/attachments`,
+						query: {
+							...paginationOptions,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getLimitTransactions') {
+					const budgetId = this.getNodeParameter('budgetId', i) as string;
+					const budgetLimitId = this.getNodeParameter('budgetLimitId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+					const transactionType = this.getNodeParameter('transactionType', i, 'all') as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/budgets/${budgetId}/limits/${budgetLimitId}/transactions`,
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+							type: transactionType === 'all' ? undefined : transactionType,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'listAllBudgetLimits') {
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					// Validate required fields
+					if (!dateRangeFilters.start || !dateRangeFilters.end) {
+						throw new NodeOperationError(
+							this.getNode(),
+							'Start and end dates are required for listAllBudgetLimits operation',
+						);
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/budget-limits',
+						query: {
+							...dateRangeFilters,
+						},
+					});
+					returnData.push({ json: response });
+				} else if (operation === 'getTransactionsWithoutBudget') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+					const transactionType = this.getNodeParameter('transactionType', i, 'all') as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/budgets/transactions-without-budget',
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+							type: transactionType === 'all' ? undefined : transactionType,
+						},
 					});
 					returnData.push({ json: response });
 				}
@@ -899,6 +1324,626 @@ export class Fireflyiii implements INodeType {
 							...dateRangeFilters,
 							...parsedAcconuts,
 						},
+					});
+
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//         Piggy Banks
+			// ----------------------------------
+			else if (resource === 'piggyBanks') {
+				if (operation === 'listPiggyBanks') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/piggy-banks',
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getPiggyBank') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/piggy-banks/${piggyBankId}`,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'createPiggyBank') {
+					const name = this.getNodeParameter('name', i) as string;
+					const targetAmount = this.getNodeParameter('targetAmount', i) as string;
+					const startDate = this.getNodeParameter('startDate', i) as string;
+					const currencyCode = this.getNodeParameter('currencyCode', i, '') as string;
+					const additionalFields = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
+					const accountsData = this.getNodeParameter('accountsData', i, {}) as IDataObject;
+
+					// Build the accounts array from fixedCollection
+					const accountsArray = ((accountsData.account as IDataObject[]) || []).map((account) => {
+						const accountObj: IDataObject = {};
+
+						// Add all fields from the account object (already in snake_case from field definitions)
+						if (account.account_id) {
+							accountObj.account_id = account.account_id;
+						}
+						if (account.name) {
+							accountObj.name = account.name;
+						}
+						if (account.current_amount) {
+							accountObj.current_amount = account.current_amount;
+						}
+
+						return accountObj;
+					});
+
+					const body: IDataObject = {
+						name,
+						accounts: accountsArray,
+						target_amount: targetAmount,
+						start_date: startDate,
+					};
+
+					// Add currency code if provided (from main parameter)
+					if (currencyCode) {
+						body.transaction_currency_code = currencyCode;
+					}
+					// Add currency ID if provided (from additional fields as alternative)
+					if (additionalFields.currencyId) {
+						body.transaction_currency_id = additionalFields.currencyId;
+					}
+
+					// Handle other optional fields
+					if (additionalFields.targetDate) {
+						body.target_date = additionalFields.targetDate;
+					}
+					if (additionalFields.order !== undefined) {
+						body.order = additionalFields.order;
+					}
+					if (additionalFields.notes) {
+						body.notes = additionalFields.notes;
+					}
+					if (additionalFields.objectGroupId) {
+						body.object_group_id = additionalFields.objectGroupId;
+					}
+					if (additionalFields.objectGroupTitle) {
+						body.object_group_title = additionalFields.objectGroupTitle;
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: '/piggy-banks',
+						body,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'updatePiggyBank') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+					const updateAccountsData = this.getNodeParameter(
+						'updateAccountsData',
+						i,
+						{},
+					) as IDataObject;
+					const updateName = this.getNodeParameter('updateName', i, '') as string;
+					const updateTargetAmount = this.getNodeParameter('updateTargetAmount', i, '') as string;
+					const updateStartDate = this.getNodeParameter('updateStartDate', i, '') as string;
+					const updateCurrencyCode = this.getNodeParameter('updateCurrencyCode', i, '') as string;
+					const updateFields = this.getNodeParameter('updateFields', i, {}) as IDataObject;
+
+					const body: IDataObject = {};
+
+					// Build the accounts array from fixedCollection if provided
+					if (
+						updateAccountsData.account &&
+						(updateAccountsData.account as IDataObject[]).length > 0
+					) {
+						const accountsArray = ((updateAccountsData.account as IDataObject[]) || []).map(
+							(account) => {
+								const accountObj: IDataObject = {};
+
+								if (account.account_id) {
+									accountObj.account_id = account.account_id;
+								}
+								if (account.name) {
+									accountObj.name = account.name;
+								}
+								if (account.current_amount) {
+									accountObj.current_amount = account.current_amount;
+								}
+
+								return accountObj;
+							},
+						);
+						body.accounts = accountsArray;
+					}
+
+					// Add main fields if provided
+					if (updateName) {
+						body.name = updateName;
+					}
+					if (updateTargetAmount) {
+						body.target_amount = updateTargetAmount;
+					}
+					if (updateStartDate) {
+						body.start_date = updateStartDate;
+					}
+
+					// Add currency code if provided
+					if (updateCurrencyCode) {
+						body.transaction_currency_code = updateCurrencyCode;
+					}
+
+					// Add currency ID if provided (from additional fields as alternative)
+					if (updateFields.currencyId) {
+						body.transaction_currency_id = updateFields.currencyId;
+					}
+
+					// Handle other optional fields from additional fields
+					if (updateFields.targetDate) {
+						body.target_date = updateFields.targetDate;
+					}
+					if (updateFields.order !== undefined) {
+						body.order = updateFields.order;
+					}
+					if (updateFields.notes) {
+						body.notes = updateFields.notes;
+					}
+					if (updateFields.objectGroupId) {
+						body.object_group_id = updateFields.objectGroupId;
+					}
+					if (updateFields.objectGroupTitle) {
+						body.object_group_title = updateFields.objectGroupTitle;
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/piggy-banks/${piggyBankId}`,
+						body,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'deletePiggyBank') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+
+					await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/piggy-banks/${piggyBankId}`,
+					});
+
+					returnData.push({ json: { success: true, id: piggyBankId } });
+				} else if (operation === 'getEvents') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/piggy-banks/${piggyBankId}/events`,
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getAttachments') {
+					const piggyBankId = this.getNodeParameter('piggyBankId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/piggy-banks/${piggyBankId}/attachments`,
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//          Object Groups API
+			// ----------------------------------
+			else if (resource === 'objectGroups') {
+				if (operation === 'listObjectGroups') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/object-groups',
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getObjectGroup') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/object-groups/${objectGroupId}`,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'updateObjectGroup') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+					const title = this.getNodeParameter('title', i) as string;
+					const updateFields = this.getNodeParameter('updateFields', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/object-groups/${objectGroupId}`,
+						body: {
+							title,
+							...updateFields,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'deleteObjectGroup') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+
+					await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/object-groups/${objectGroupId}`,
+					});
+
+					returnData.push({ json: { success: true, id: objectGroupId } });
+				} else if (operation === 'getBills') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/object-groups/${objectGroupId}/bills`,
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getPiggyBanks') {
+					const objectGroupId = this.getNodeParameter('objectGroupId', i) as string;
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/object-groups/${objectGroupId}/piggy-banks`,
+						query: {
+							...paginationOptions,
+						},
+					});
+
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//       Available Budgets API
+			// ----------------------------------
+			else if (resource === 'availableBudgets') {
+				if (operation === 'listAvailableBudgets') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+					const dateRangeFilters = this.getNodeParameter('dateRangeFilters', i, {}) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/available-budgets',
+						query: {
+							...paginationOptions,
+							...dateRangeFilters,
+						},
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getAvailableBudget') {
+					const availableBudgetId = this.getNodeParameter('availableBudgetId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/available-budgets/${availableBudgetId}`,
+					});
+
+					returnData.push({ json: response });
+				}
+			}
+			// ----------------------------------
+			//       Recurrences API
+			// ----------------------------------
+			else if (resource === 'recurrences') {
+				if (operation === 'listRecurrences') {
+					const paginationOptions = this.getNodeParameter(
+						'paginationOptions',
+						i,
+						{},
+					) as IDataObject;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: '/recurrences',
+						query: paginationOptions,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'getRecurrence') {
+					const recurrenceId = this.getNodeParameter('recurrenceId', i) as string;
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'GET',
+						endpoint: `/recurrences/${recurrenceId}`,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'createRecurrence') {
+					// Required fields
+					const type = this.getNodeParameter('type', i) as string;
+					const title = this.getNodeParameter('title', i) as string;
+					const first_date = this.getNodeParameter('first_date', i) as string;
+
+					// Optional settings
+					const recurrenceSettings = this.getNodeParameter(
+						'recurrenceSettings',
+						i,
+						{},
+					) as IDataObject;
+
+					// Fixed collections
+					const repetitionsData = this.getNodeParameter('repetitions', i, {}) as IDataObject;
+					const transactionsData = this.getNodeParameter('transactions', i, {}) as IDataObject;
+
+					// Build repetitions array
+					const repetitions: any[] = [];
+					if (repetitionsData.repetition && Array.isArray(repetitionsData.repetition)) {
+						for (const rep of repetitionsData.repetition) {
+							repetitions.push({
+								type: rep.type,
+								moment: rep.moment,
+								skip: rep.skip,
+								weekend: rep.weekend,
+							});
+						}
+					}
+
+					// Build transactions array
+					const transactions: any[] = [];
+					if (transactionsData.transaction && Array.isArray(transactionsData.transaction)) {
+						for (const txn of transactionsData.transaction) {
+							const transactionDetails = txn.transactionDetails || {};
+
+							// Handle tags conversion (comma-separated string to array)
+							let tags = null;
+							if (transactionDetails.tags) {
+								const parsedTags = parseCommaSeparatedFields({
+									tags: transactionDetails.tags as string,
+								});
+								tags = parsedTags.tags;
+							}
+
+							transactions.push({
+								description: txn.description,
+								amount: txn.amount,
+								source_id: txn.source_id,
+								destination_id: txn.destination_id,
+								currency_id: transactionDetails.currency_id || undefined,
+								currency_code: transactionDetails.currency_code || undefined,
+								foreign_amount: transactionDetails.foreign_amount || undefined,
+								foreign_currency_id: transactionDetails.foreign_currency_id || undefined,
+								foreign_currency_code: transactionDetails.foreign_currency_code || undefined,
+								budget_id: transactionDetails.budget_id || undefined,
+								category_id: transactionDetails.category_id || undefined,
+								tags: tags || undefined,
+								piggy_bank_id: transactionDetails.piggy_bank_id || undefined,
+								bill_id: transactionDetails.bill_id || undefined,
+							});
+						}
+					}
+
+					// Format first_date to YYYY-MM-DD
+					const formattedFirstDate = first_date.split('T')[0];
+
+					// Format repeat_until if present
+					let formattedRepeatUntil = recurrenceSettings.repeat_until;
+					if (formattedRepeatUntil) {
+						formattedRepeatUntil = (formattedRepeatUntil as string).split('T')[0];
+					}
+
+					// Build request body
+					const body: IDataObject = {
+						type,
+						title,
+						first_date: formattedFirstDate,
+						...recurrenceSettings,
+						repeat_until: formattedRepeatUntil || undefined,
+						repetitions,
+						transactions,
+					};
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: '/recurrences',
+						body,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'updateRecurrence') {
+					const recurrenceId = this.getNodeParameter('recurrenceId', i) as string;
+					const recurrenceSettings = this.getNodeParameter(
+						'recurrenceSettings',
+						i,
+						{},
+					) as IDataObject;
+
+					// Fixed collections (both optional for update)
+					const repetitionsData = this.getNodeParameter('repetitions', i, {}) as IDataObject;
+					const transactionsData = this.getNodeParameter('transactions', i, {}) as IDataObject;
+
+					// Build repetitions array (only if provided)
+					let repetitions: any[] | undefined = undefined;
+					if (repetitionsData.repetition && Array.isArray(repetitionsData.repetition)) {
+						repetitions = [];
+
+						for (const rep of repetitionsData.repetition) {
+							repetitions.push({
+								type: rep.type,
+								moment: rep.moment,
+								skip: rep.skip,
+								weekend: rep.weekend,
+							});
+						}
+					}
+
+					// Build transactions array (only if provided, include ID for update)
+					let transactions: any[] | undefined = undefined;
+					if (transactionsData.transaction && Array.isArray(transactionsData.transaction)) {
+						transactions = [];
+						for (const txn of transactionsData.transaction) {
+							const transactionDetails = txn.transactionDetails || {};
+
+							// Handle tags conversion
+							let tags = null;
+							if (transactionDetails.tags) {
+								const parsedTags = parseCommaSeparatedFields({
+									tags: transactionDetails.tags as string,
+								});
+								tags = parsedTags.tags;
+							}
+
+							// Build transaction object with only provided fields
+							const transaction: IDataObject = {
+								id: txn.id || undefined, // Include ID for update
+							};
+
+							// Only include fields that are provided (not empty strings)
+							if (transactionDetails.description) {
+								transaction.description = transactionDetails.description;
+							}
+							if (transactionDetails.amount) {
+								transaction.amount = transactionDetails.amount;
+							}
+							if (transactionDetails.source_id) {
+								transaction.source_id = transactionDetails.source_id;
+							}
+							if (transactionDetails.destination_id) {
+								transaction.destination_id = transactionDetails.destination_id;
+							}
+							if (transactionDetails.currency_id) {
+								transaction.currency_id = transactionDetails.currency_id;
+							}
+							if (transactionDetails.currency_code) {
+								transaction.currency_code = transactionDetails.currency_code;
+							}
+							if (transactionDetails.foreign_amount) {
+								transaction.foreign_amount = transactionDetails.foreign_amount;
+							}
+							if (transactionDetails.foreign_currency_id) {
+								transaction.foreign_currency_id = transactionDetails.foreign_currency_id;
+							}
+							if (transactionDetails.foreign_currency_code) {
+								transaction.foreign_currency_code = transactionDetails.foreign_currency_code;
+							}
+							if (transactionDetails.budget_id) {
+								transaction.budget_id = transactionDetails.budget_id;
+							}
+							if (transactionDetails.category_id) {
+								transaction.category_id = transactionDetails.category_id;
+							}
+							if (tags) {
+								transaction.tags = tags;
+							}
+							if (transactionDetails.piggy_bank_id) {
+								transaction.piggy_bank_id = transactionDetails.piggy_bank_id;
+							}
+							if (transactionDetails.bill_id) {
+								transaction.bill_id = transactionDetails.bill_id;
+							}
+
+							transactions.push(transaction);
+						}
+					}
+
+					// Format first_date if present in settings
+					let formattedFirstDate = recurrenceSettings.first_date;
+					if (formattedFirstDate) {
+						formattedFirstDate = (formattedFirstDate as string).split('T')[0];
+					}
+
+					// Format repeat_until if present
+					let formattedRepeatUntil = recurrenceSettings.repeat_until;
+					if (formattedRepeatUntil) {
+						formattedRepeatUntil = (formattedRepeatUntil as string).split('T')[0];
+					}
+
+					// Build body with only provided fields
+					const body: IDataObject = {
+						...recurrenceSettings,
+						first_date: formattedFirstDate || undefined,
+						repeat_until: formattedRepeatUntil || undefined,
+					};
+
+					// Only include repetitions and transactions if they were provided
+					if (repetitions !== undefined) {
+						body.repetitions = repetitions;
+					}
+					if (transactions !== undefined) {
+						body.transactions = transactions;
+					}
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'PUT',
+						endpoint: `/recurrences/${recurrenceId}`,
+						body,
+					});
+
+					returnData.push({ json: response });
+				} else if (operation === 'deleteRecurrence') {
+					const recurrenceId = this.getNodeParameter('recurrenceId', i) as string;
+
+					await fireflyApiRequest.call(this, {
+						method: 'DELETE',
+						endpoint: `/recurrences/${recurrenceId}`,
+					});
+
+					returnData.push({ json: { success: true } });
+				} else if (operation === 'triggerRecurrence') {
+					const recurrenceId = this.getNodeParameter('recurrenceId', i) as string;
+					const date = this.getNodeParameter('date', i) as string;
+
+					// Format date to YYYY-MM-DD
+					const formattedDate = date.split('T')[0];
+
+					const response = await fireflyApiRequest.call(this, {
+						method: 'POST',
+						endpoint: `/recurrences/${recurrenceId}/trigger`,
+						query: { date: formattedDate },
 					});
 
 					returnData.push({ json: response });
