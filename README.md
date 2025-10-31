@@ -10,23 +10,32 @@ Many of Firefly III endpoints implemented, including transactions, search and ex
 
 ## Supported Endpoints
 
-This node supports many of Firefly III API endpoints, such as:
+This node supports the following Firefly III API endpoints:
 
-- **/api/v1/transactions**: Create, list, update, and delete transactions.
-- **/api/v1/accounts**: Retrieve, create, update, and delete account details.
-- **/api/v1/bills**: Manage bills with full CRUD operations, attachments, rules, and transaction tracking.
-- **/api/v1/budgets**: Fetch budget information.
-- **/api/v1/categories**: List, create, update, and delete categories.
-- **/api/v1/tags**: Retrieve, create, update, and delete tags.
-- **/api/v1/attachments**: Upload and manage attachments.
-- **/api/v1/recurrences**: Handle recurring transactions.
-- **/api/v1/rules**: Manage rules and rule groups.
-- **/api/v1/piggy_banks**: Retrieve and manage piggy banks.
-- **/api/v1/preferences**: Fetch user preferences.
-- **/api/v1/about**: Retrieve system and user information.
-- **/api/v1/cron**: Run cron jobs.
+### General Operations
+- **/api/v1/about** (3 operations): System information, user information, and cron jobs.
+- **/api/v1/search** (1 operation): Search across all resources.
+- **/api/v1/insight** (1 operation): Retrieve spending insights.
+- **/api/v1/data/export** (1 operation): Export data.
+- **/api/v1/available-budgets** (2 operations): List and retrieve available budgets.
 
-Note: it doesn't do crazy things, mostly one-to-one endpoint mapping, feel free to clone repo and do what you must.
+### Financial Control Resources
+- **/api/v1/budgets** (15 operations): Full CRUD for budgets and budget limits, track spending, retrieve transactions.
+- **/api/v1/piggy-banks** (7 operations): Full CRUD operations, manage events and attachments.
+- **/api/v1/bills** (8 operations): Full CRUD operations, manage attachments, retrieve rules and transactions.
+
+### Core Resources: Transaction and Automation
+- **/api/v1/transactions** (6 operations): Create, list, get, update, delete transactions, and retrieve attachments.
+- **/api/v1/rules** (14 operations): Full CRUD for rules and rule groups, test and trigger rules.
+- **/api/v1/recurrences** (6 operations): Full CRUD for recurring transactions, trigger execution.
+
+### Account & Classification Resources
+- **/api/v1/accounts** (6 operations): Full CRUD operations, retrieve related transactions, piggy banks, and attachments.
+- **/api/v1/categories** (6 operations): Full CRUD operations and retrieve category transactions.
+- **/api/v1/tags** (7 operations): Full CRUD operations, retrieve transactions and attachments.
+- **/api/v1/object-groups** (6 operations): List, get, update, delete groups and retrieve related bills/piggy banks.
+
+**Total: 83+ operations across 14 API resources**
 
 ## Usage
 
