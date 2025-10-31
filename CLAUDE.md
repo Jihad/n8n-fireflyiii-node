@@ -50,6 +50,7 @@ Main node implementation containing:
   - `tags/` - Tag management
   - `rules/` - Rule and rule group operations
   - `piggyBanks/` - Piggy bank management (full CRUD + events, attachments)
+  - `objectGroups/` - Object group management (list, get, update, delete, related objects)
   - `general/` - Export, insights, search operations
   - `about/` - System information
 - **`utils/`**: Shared utilities
@@ -84,6 +85,8 @@ The Firefly III API follows REST conventions with versioned endpoints. This node
 - **Tags** (`/api/v1/tags/*`): Full CRUD + transactions, attachments (7 operations)
 - **Rules & Rule Groups** (`/api/v1/rules/*`, `/api/v1/rule-groups/*`): Full CRUD + testing, triggering (14 operations)
 - **Piggy Banks** (`/api/v1/piggy-banks/*`): Full CRUD + events, attachments (7 operations)
+- **Object Groups** (`/api/v1/object-groups/*`): List, get, update, delete + related bills/piggy banks (6 operations)
+  - **Note**: Object groups cannot be created directly; they are auto-created when bills or piggy banks use `object_group_title` parameter
 
 **API Endpoints Not Yet Implemented:**
 - Attachments (as standalone resource - `/api/v1/attachments/*`)
@@ -94,7 +97,6 @@ The Firefly III API follows REST conventions with versioned endpoints. This node
 - Currencies (`/api/v1/currencies/*`)
 - Currency Exchange Rates (`/api/v1/cer/*`)
 - Links (`/api/v1/transaction-links/*`, `/api/v1/link-types/*`)
-- Object Groups (`/api/v1/object-groups/*`)
 - Preferences (`/api/v1/preferences/*`)
 - Recurrences (`/api/v1/recurrences/*`)
 - Summary (`/api/v1/summary/*`)
@@ -267,6 +269,26 @@ List operations use query parameters for filtering:
 - Empty string values are filtered out in `fireflyApiRequest()`
 - Boolean parameters must be strings (`'true'`, `'false'`)
 - Arrays (like tags) must be formatted according to API requirements
+
+### Object Group Auto-Creation and Auto-Deletion
+Object groups **cannot be created directly** through the API. Instead:
+- Create/update **bills** or **piggy banks** with `object_group_title` parameter
+- Firefly III automatically creates the object group if it doesn't exist
+- Groups **auto-delete** when no objects are linked to them anymore
+- Only **title** and **order** fields can be updated; all other fields are read-only
+
+**Example - Creating an object group via bill:**
+```typescript
+// Creating a bill with object_group_title automatically creates the group
+{
+  name: "Internet Bill",
+  amount_min: "50",
+  amount_max: "60",
+  date: "2025-01-15",
+  repeat_freq: "monthly",
+  object_group_title: "Monthly Utilities"  // Creates "Monthly Utilities" group
+}
+```
 
 ## Git Workflow
 
